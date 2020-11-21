@@ -32,7 +32,7 @@ def readDataset():
 	# print(data.head())
 
 	# Dữ liệu cột education
-	# print(data['education'].unique())
+	# print("Dự liệu ban đầu cột education:",data['education'].unique())
 
 	# Nhóm dữ liệu basic.4y - basic.6y - basic.9y thành basic
 
@@ -41,8 +41,67 @@ def readDataset():
 	data['education'] = np.where(data['education'] == 'basic.9y','basic',data['education'])
 
 	# Kiểm tra:
-	# print(data['education'].unique())
+	# print('---------------------------------')
+	# print("Dự liệu sau khi gom nhóm cột education:",data['education'].unique())
+	X = data.loc[:, data.columns != 'y']
+	# print('Các biến độc lập: ')
+	# print(X.head())
+	# print(X.columns)
+	# print('Số lượng biến độc lập: ',len(X.columns))
 	return data
+
+def numberVariable(data):
+	# Chuyển đổi biến chuỗi thành các cột chứa dữ liệu dạng binary (có hoặc không)
+	# vd: marital : married -> marital_married : 1 nếu khách hàng đó có kết hôn hay marital_married : 0 nếu khách hàng ko có kết hôn
+	vars = ['job','marital','education','default','housing','loan','contact','month','day_of_week','poutcome']
+	for var in vars:
+	    cat_list = 'var' + '_' + var
+	    cat_list = pd.get_dummies(data[var], prefix = var)
+	    data1 = data.join(cat_list)
+	    data = data1
+	vars = ['job','marital','education','default','housing','loan','contact','month','day_of_week','poutcome']
+	data_vars = data.columns.values.tolist()
+	to_keep = [i for i in data_vars if i not in vars]
+	data_final = data[to_keep]
+
+	X = data_final.loc[:, data_final.columns != 'y']
+	# Test title dataset
+	# print('Các biến độc lập: ')
+	# print(X.head())
+	# print(X.columns)
+	# print('Số lượng biến độc lập: ',len(X.columns))
+	# print(data_final.columns.values)
+	# print(data_final.head(5))
+
+	return data_final
+
+
+def Experimental(data_final):
+	data_job_true_1 = 0
+	data_job_false_1 = 0
+	data_job_true_0 = 0
+	data_job_false_0 = 0
+	for i in range(len(data_final)):
+		if data_final['y'][i] == 1 and data_final['job_blue-collar'][i] == 1:
+			data_job_true_1 += 1
+		elif data_final['y'][i] == 1 and data_final['job_blue-collar'][i] == 0:
+			data_job_false_1 += 1
+		elif data_final['y'][i] == 0 and data_final['job_blue-collar'][i] == 1:
+			data_job_true_0 += 1
+		elif data_final['y'][i] == 0 and data_final['job_blue-collar'][i] == 0:
+			data_job_false_0 += 1
+
+	print('======================= THỰC NGHIỆM =======================')
+	print('Khách hàng đăng ký',len(data_final[data_final['y'] == 1]))
+	print('Khách hàng không đăng ký',len(data_final[data_final['y'] == 0]))
+
+	print('Khách hàng đăng ký có nghề nghiệp là blue-collar: ',data_job_true_1)
+	print('Khách hàng đăng ký có nghề nghiệp là nghề khác: ',data_job_false_1)
+	print('Khách hàng không đăng ký có nghề nghiệp là blue-collar: ',data_job_true_0)
+	print('Khách hàng không đăng ký có nghề nghiệp là nghề khác: ',data_job_false_0)
+	# print(data_final['job_blue-collar'])
+	# print(data_final['education_basic'])
+
 
 # Trực quan hóa dữ liệu:
 def visualizationChart(data):
@@ -126,14 +185,17 @@ def subscriptionPercent(data):
 	sub_percent = count_sub/count
 	no_sub_percent = count_no_sub/count
 
-	print('tỉ lệ phần trăm khách hàng đăng ký:',sub_percent * 100)
-	print('tỉ lệ phần trăm khách hàng không đăng ký:',no_sub_percent * 100)
+	print('tỉ lệ phần trăm khách hàng đăng ký:',round(sub_percent * 100,2),'%')
+	print('tỉ lệ phần trăm khách hàng không đăng ký:',round(no_sub_percent * 100,2),'%')
 
 	# Trung bình theo biến phân loại y:
 	# print(data.groupby('y').mean())
 
+
+data = readDataset()
 print('=======================================================')
 print('------------Percentage------------')
-data = readDataset()
 visualizationChart(data)
 subscriptionPercent(data)
+data_final = numberVariable(data)
+Experimental(data_final)

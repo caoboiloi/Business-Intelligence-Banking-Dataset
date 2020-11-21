@@ -1,22 +1,13 @@
 import pandas as pd
+from numpy import *
 import numpy as np
-from sklearn import preprocessing
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LogisticRegression
-from sklearn import metrics
+import math
+from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from sklearn.metrics import confusion_matrix
-from sklearn.feature_selection import RFE
-from imblearn.over_sampling import SMOTE
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import roc_curve
-import seaborn as sns
-
-plt.rc("font", size=14)
-sns.set(style="white")
-sns.set(style="whitegrid", color_codes=True)
-
+import matplotlib.pyplot as plt
+import time
+from sklearn import neighbors
 
 def readDataset():
 	# Đọc dataset
@@ -37,9 +28,9 @@ def readDataset():
 
 	# Nhóm dữ liệu basic.4y - basic.6y - basic.9y thành basic
 
-	data['education'] = np.where(data['education'] == 'basic.4y','basic',data['education'])
-	data['education'] = np.where(data['education'] == 'basic.6y','basic',data['education'])
-	data['education'] = np.where(data['education'] == 'basic.9y','basic',data['education'])
+	data['education'] = where(data['education'] == 'basic.4y','basic',data['education'])
+	data['education'] = where(data['education'] == 'basic.6y','basic',data['education'])
+	data['education'] = where(data['education'] == 'basic.9y','basic',data['education'])
 
 	# Kiểm tra:
 	# print(data['education'].unique())
@@ -122,73 +113,89 @@ def createSmote(data_final):
 	# Kết quả dự đoán sẽ được chính xác
 	return os_data_X,os_data_y,X_test,y_test
 
-#RFE: Biểu diễn kết quả của quá trình thử và sai các tập con features để đưa ra số lượng features và các features tối ưu cho thuật toán dự đoán.
-# Tìm ra số lượng feature tối ưu cho thuật toán đang sử dụng, tránh lặp lại nhiều lần
-def recursiveFeatureElimination(data_final,smote_data_X,smote_data_y):
-	# title dataset final
-	feature_rol = data_final.columns.values.tolist()
+# Euclidean:
+# numOfFeature: số lượng feature trong tập dataset
+def calcDistancs(pointA, pointB, numOfFeature=61):
+	tmp = 0
+	for i in range(numOfFeature):
+	    tmp += (float(pointA[i]) - float(pointB[i])) ** 2
+	return math.sqrt(tmp)
 
-	# title dataset final not y
-	X = [i for i in feature_rol if i not in 'y']
+def kNearestNeighbor(trainSet, point, k):
+	distances = []
+	for item in trainSet:
+	    distances.append({
+	        "label": item[-1],
+	        "value": calcDistancs(item, point)
+	    })
+	distances.sort(key=lambda x: x["value"])
+	labels = [item["label"] for item in distances]
+	return labels[:k]
+
+def findMostOccur(arr):
+	labels = set(arr) # set label
+	ans = ""
+	maxOccur = 0
+	for label in labels:
+	    num = arr.count(label)
+	    if num > maxOccur:
+	        maxOccur = num
+	        ans = label
+	return ans
+
+if __name__ == "__main__": 
+
+	print('=======================================================')
+	print('------------Percentage------------')
+	data = readDataset()
+	subscriptionPercent(data)
+	print('=======================================================')
+	print('------------Oversampling - SMOTE------------')
+	# KNN
+	data_final = numberVariable(data)
+	X_train,y_train,X_test,y_test = createSmote(data_final)
+	os_data_final = np.array(np.concatenate((X_train, y_train), axis=1))
+	np.random.shuffle(os_data_final)
+
+	trainSet = os_data_final[:1000]
+	testSet = os_data_final[30000:]
+
+	print('=======================================================')
+	print('------------K-Nearest Neighbors------------')
+
+	y_pred = []
+	y = []
+
+	start_time = time.time()
+
+	for item in trainSet:
+		knn = kNearestNeighbor(trainSet, item, 5)
+		answer = findMostOccur(knn)
+		y_pred.append(round(answer))
+		y.append(round(item[-1]))
+
+	print('Độ chính xác:',round(accuracy_score(y,y_pred)*100,2),'%')
+	print(" Kết thúc: ",time.time()-start_time," seconds")
+
+	start_time = time.time()
+
+	indx = [np.random.randint(0,len(testSet)) for i in range(10)]
+	temp = 0
+	for i in indx:
+		print("___________________________________________")
+		print("Vị trị dữ liệu dự đoán: ",i)
+		# chọn k = 5
+		knn = kNearestNeighbor(testSet, testSet[i], 5)
+		answer = findMostOccur(knn)
+		print("Dự đoán: ",answer)
+		print("Kết quả đúng: ",testSet[i][-1])
+		if round(answer) == round(testSet[i][-1]):
+			temp += 1
+
+	print("Độ chính xác 10 tập test ngẫu nhiên: ",round(temp/10*100,2),'%')
+
+	# for i in range(15):
+	# 	print(trainSet[i])
+	# X = trainSet[:,0:-1]
+
 	
-	rfe = RFE(LogisticRegression(), 20)
-	rfe = rfe.fit(smote_data_X, smote_data_y.values.ravel())
-	# Kiểm tra những đặc tính phù hợp
-	print(rfe.support_)
-	# print(smote_data_X)
-	print(rfe.ranking_)
-
-def logisticRegression(X,y):
-	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
-	model = LogisticRegression(max_iter = 1000)
-	model.fit(X_train, y_train)
-	return accuracy_score(y_test, model.predict(X_test)),X_test,y_test,X_train,y_train
-
-def probabilityChart(X_test,y_test,X_train,y_train):
-	# một công cụ hỗ trợ vẽ dường xác suất cho p
-	model = LogisticRegression(max_iter = 1000)
-	model.fit(X_train, y_train)
-	logit_roc_auc = roc_auc_score(y_test, model.predict(X_test))
-	fpr, tpr, thresholds = roc_curve(y_test, model.predict_proba(X_test)[:,1])
-	plt.figure()
-	plt.plot(fpr, tpr, label='Logistic Regression (area = %0.2f)' % logit_roc_auc)
-	plt.plot([0, 1], [0, 1],'r--')
-	plt.xlim([0.0, 1.0])
-	plt.ylim([0.0, 1.05])
-	plt.xlabel('0')
-	plt.ylabel('1')
-	plt.title('Đồ thị biểu diễn xác suất khách hàng đăng ký tiền gửi có kỳ hạn P')
-	plt.legend(loc="lower right")
-	plt.savefig('probabilityChart')
-
-print('=======================================================')
-print('------------Percentage------------')
-data = readDataset()
-subscriptionPercent(data)
-print('=======================================================')
-print('------------Oversampling - SMOTE------------')
-# Logistic Regression
-data_final = numberVariable(data)
-os_data_X,os_data_y,X_test,y_test = createSmote(data_final)
-
-# RFE: tối ưu các feature của tập dataset
-# recursiveFeatureElimination(data_final,os_data_X,os_data_y)
-
-# dùng RFE xác định các feature tối ưu cho dataset
-# Các feature rank = 1
-feature_rol_optimal = ['euribor3m', 'job_blue-collar', 'job_housemaid', 'marital_unknown', 'education_illiterate', 'default_no', 'default_unknown', 
-		'contact_cellular', 'contact_telephone', 'month_apr', 'month_aug', 'month_dec', 'month_jul', 'month_jun', 'month_mar', 'month_may', 
-		'month_nov', 'month_oct', "poutcome_failure", "poutcome_success"]
-print('=======================================================')
-print('------------recursive Feature Elimination------------')
-print('chọn các feature sau khi áp dụng RFE tối ưu:')
-print(feature_rol_optimal)
-X=os_data_X[feature_rol_optimal]
-y=os_data_y['y']
-accuracy_score,X_test_final,y_test_final,X_train_final,y_train_final = logisticRegression(X,y)
-print('=======================================================')
-print('------------Logistic Regression------------')
-print('Độ chính xác: ',round(accuracy_score*100,2),'%')
-print('=======================================================')
-print('------------Probability Chart------------')
-probabilityChart(X_test_final,y_test_final,X_train_final,y_train_final)

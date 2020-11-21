@@ -1,22 +1,9 @@
+from joblib.numpy_pickle_utils import xrange
+from numpy import *
 import pandas as pd
 import numpy as np
-from sklearn import preprocessing
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LogisticRegression
-from sklearn import metrics
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import confusion_matrix
-from sklearn.feature_selection import RFE
 from imblearn.over_sampling import SMOTE
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import roc_curve
-import seaborn as sns
-
-plt.rc("font", size=14)
-sns.set(style="white")
-sns.set(style="whitegrid", color_codes=True)
-
+from sklearn.model_selection import train_test_split
 
 def readDataset():
 	# Đọc dataset
@@ -37,9 +24,9 @@ def readDataset():
 
 	# Nhóm dữ liệu basic.4y - basic.6y - basic.9y thành basic
 
-	data['education'] = np.where(data['education'] == 'basic.4y','basic',data['education'])
-	data['education'] = np.where(data['education'] == 'basic.6y','basic',data['education'])
-	data['education'] = np.where(data['education'] == 'basic.9y','basic',data['education'])
+	data['education'] = where(data['education'] == 'basic.4y','basic',data['education'])
+	data['education'] = where(data['education'] == 'basic.6y','basic',data['education'])
+	data['education'] = where(data['education'] == 'basic.9y','basic',data['education'])
 
 	# Kiểm tra:
 	# print(data['education'].unique())
@@ -94,6 +81,7 @@ def createSmote(data_final):
 	# print(data_final)
 	# Lấy tất cả biến bỏ biến phân loại y
 	X = data_final.loc[:, data_final.columns != 'y']
+	X = (X / 1000).astype(float32)
 	# Lấy biến phân loại y
 	y = data_final.loc[:, data_final.columns == 'y']
 	os = SMOTE(random_state=0)
@@ -122,73 +110,74 @@ def createSmote(data_final):
 	# Kết quả dự đoán sẽ được chính xác
 	return os_data_X,os_data_y,X_test,y_test
 
-#RFE: Biểu diễn kết quả của quá trình thử và sai các tập con features để đưa ra số lượng features và các features tối ưu cho thuật toán dự đoán.
-# Tìm ra số lượng feature tối ưu cho thuật toán đang sử dụng, tránh lặp lại nhiều lần
-def recursiveFeatureElimination(data_final,smote_data_X,smote_data_y):
-	# title dataset final
-	feature_rol = data_final.columns.values.tolist()
+class NeuralNet(object): 
+	def __init__(self): 
+		# Generate random numbers 
+		random.seed(1) 
 
-	# title dataset final not y
-	X = [i for i in feature_rol if i not in 'y']
-	
-	rfe = RFE(LogisticRegression(), 20)
-	rfe = rfe.fit(smote_data_X, smote_data_y.values.ravel())
-	# Kiểm tra những đặc tính phù hợp
-	print(rfe.support_)
-	# print(smote_data_X)
-	print(rfe.ranking_)
+		# Assign random weights to a 61 x 1 matrix, 
+		self.synaptic_weights = 2 * random.random((61, 1)) - 1
 
-def logisticRegression(X,y):
-	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
-	model = LogisticRegression(max_iter = 1000)
-	model.fit(X_train, y_train)
-	return accuracy_score(y_test, model.predict(X_test)),X_test,y_test,X_train,y_train
+	# The Sigmoid function 
+	def __sigmoid(self, x): 
+		return 1 / (1 + exp(-x)) 
 
-def probabilityChart(X_test,y_test,X_train,y_train):
-	# một công cụ hỗ trợ vẽ dường xác suất cho p
-	model = LogisticRegression(max_iter = 1000)
-	model.fit(X_train, y_train)
-	logit_roc_auc = roc_auc_score(y_test, model.predict(X_test))
-	fpr, tpr, thresholds = roc_curve(y_test, model.predict_proba(X_test)[:,1])
-	plt.figure()
-	plt.plot(fpr, tpr, label='Logistic Regression (area = %0.2f)' % logit_roc_auc)
-	plt.plot([0, 1], [0, 1],'r--')
-	plt.xlim([0.0, 1.0])
-	plt.ylim([0.0, 1.05])
-	plt.xlabel('0')
-	plt.ylabel('1')
-	plt.title('Đồ thị biểu diễn xác suất khách hàng đăng ký tiền gửi có kỳ hạn P')
-	plt.legend(loc="lower right")
-	plt.savefig('probabilityChart')
+	# The derivative of the Sigmoid function. 
+	# This is the gradient of the Sigmoid curve. 
+	def __sigmoid_derivative(self, x): 
+		return x * (1 - x) 
 
-print('=======================================================')
-print('------------Percentage------------')
-data = readDataset()
-subscriptionPercent(data)
-print('=======================================================')
-print('------------Oversampling - SMOTE------------')
-# Logistic Regression
-data_final = numberVariable(data)
-os_data_X,os_data_y,X_test,y_test = createSmote(data_final)
+	# Train the neural network and adjust the weights each time. 
+	def train(self, inputs, outputs, training_iterations): 
+		for iteration in xrange(training_iterations): 
+			# Pass the training set through the network. 
+			output = self.learn(inputs) 
 
-# RFE: tối ưu các feature của tập dataset
-# recursiveFeatureElimination(data_final,os_data_X,os_data_y)
+			# Calculate the error 
+			error = outputs - output 
 
-# dùng RFE xác định các feature tối ưu cho dataset
-# Các feature rank = 1
-feature_rol_optimal = ['euribor3m', 'job_blue-collar', 'job_housemaid', 'marital_unknown', 'education_illiterate', 'default_no', 'default_unknown', 
-		'contact_cellular', 'contact_telephone', 'month_apr', 'month_aug', 'month_dec', 'month_jul', 'month_jun', 'month_mar', 'month_may', 
-		'month_nov', 'month_oct', "poutcome_failure", "poutcome_success"]
-print('=======================================================')
-print('------------recursive Feature Elimination------------')
-print('chọn các feature sau khi áp dụng RFE tối ưu:')
-print(feature_rol_optimal)
-X=os_data_X[feature_rol_optimal]
-y=os_data_y['y']
-accuracy_score,X_test_final,y_test_final,X_train_final,y_train_final = logisticRegression(X,y)
-print('=======================================================')
-print('------------Logistic Regression------------')
-print('Độ chính xác: ',round(accuracy_score*100,2),'%')
-print('=======================================================')
-print('------------Probability Chart------------')
-probabilityChart(X_test_final,y_test_final,X_train_final,y_train_final)
+			# Adjust the weights by a factor 
+			factor = dot(inputs.T, error * self.__sigmoid_derivative(output)) 
+			self.synaptic_weights += factor
+			# print('Độ chính xác: ',self.acc(self.learn(inputs),outputs))
+
+		# The neural network thinks. 
+
+	def learn(self, inputs): 
+		return self.__sigmoid(dot(inputs, self.synaptic_weights))
+
+	def acc(self, y, yPred):
+		acc = sum(y == yPred) / len(y) * 100
+		return acc
+
+
+if __name__ == "__main__": 
+
+	print('=======================================================')
+	print('------------Percentage------------')
+	data = readDataset()
+	subscriptionPercent(data)
+	print('=======================================================')
+	print('------------Oversampling - SMOTE------------')
+	# ANN
+	data_final = numberVariable(data)
+	X_train,y_train,X_test,y_test = createSmote(data_final)
+
+	X_train = array(X_train)
+	y_train = array(y_train)
+
+	X_test = array(X_test)
+	y_test = array(y_test)
+
+	# Initialize 
+	neural_network = NeuralNet()
+
+	# The training set.
+
+	# Train the neural network 
+	neural_network.train(X_train, y_train, 400)
+
+	# Test the neural network with a test example.
+	print(neural_network.learn(X_train))
+
+
