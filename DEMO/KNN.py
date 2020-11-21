@@ -7,7 +7,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
 import time
-from sklearn import neighbors
+from matplotlib.colors import ListedColormap
+from sklearn import neighbors,datasets
 
 def readDataset():
 	# Đọc dataset
@@ -157,7 +158,7 @@ if __name__ == "__main__":
 	os_data_final = np.array(np.concatenate((X_train, y_train), axis=1))
 	np.random.shuffle(os_data_final)
 
-	trainSet = os_data_final[:1000]
+	trainSet = os_data_final[:40]
 	testSet = os_data_final[30000:]
 
 	print('=======================================================')
@@ -194,8 +195,9 @@ if __name__ == "__main__":
 
 	print("Độ chính xác 10 tập test ngẫu nhiên: ",round(temp/10*100,2),'%')
 
-	# for i in range(15):
-	# 	print(trainSet[i])
 	# X = trainSet[:,0:-1]
-
+	data_final = data_final.astype(np.uint8)
+	# X_final = data_final.loc[:, data_final.columns != 'y']
+	# # Lấy biến phân loại y
+	# y_final = data_final.loc[:, data_final.columns == 'y']
 	
