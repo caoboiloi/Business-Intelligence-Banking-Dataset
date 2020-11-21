@@ -145,7 +145,7 @@ def logisticRegression(X,y):
 	return accuracy_score(y_test, model.predict(X_test)),X_test,y_test,X_train,y_train
 
 def probabilityChart(X_test,y_test,X_train,y_train):
-	# một công cụ hỗ trợ vẽ dường xác suất cho p
+	# một công cụ hỗ trợ dánh giá được độ chính xác của thuật toán logistic
 	model = LogisticRegression(max_iter = 1000)
 	model.fit(X_train, y_train)
 	logit_roc_auc = roc_auc_score(y_test, model.predict(X_test))
@@ -155,9 +155,9 @@ def probabilityChart(X_test,y_test,X_train,y_train):
 	plt.plot([0, 1], [0, 1],'r--')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.05])
-	plt.xlabel('0')
-	plt.ylabel('1')
-	plt.title('Đồ thị biểu diễn xác suất khách hàng đăng ký tiền gửi có kỳ hạn P')
+	plt.xlabel('Đặc trưng (false positives)')
+	plt.ylabel('Độ nhạy (true positives)')
+	plt.title('Đường cong ROC')
 	plt.legend(loc="lower right")
 	plt.savefig('probabilityChart')
 
