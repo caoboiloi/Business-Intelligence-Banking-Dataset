@@ -158,7 +158,7 @@ if __name__ == "__main__":
 	os_data_final = np.array(np.concatenate((X_train, y_train), axis=1))
 	np.random.shuffle(os_data_final)
 
-	trainSet = os_data_final[:40]
+	trainSet = os_data_final[:1000]
 	testSet = os_data_final[30000:]
 
 	print('=======================================================')
